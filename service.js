@@ -8,7 +8,7 @@ const Logger = require('./assets/utils/logger');
 const allowedHeader = require('./assets/networking/allowedHeader');
 
 // Create the logger
-const logger = new Logger("token");
+const logger = new Logger("register");
 
 logger.log("Booting up microservice...");
 
