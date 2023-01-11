@@ -1,9 +1,5 @@
-const dotenv = require('dotenv');
-const path = require('path');
 const fs = require('fs');
-
-// get the environment variables
-dotenv.config();
+const path = require('path');
 
 Reset = "\x1b[0m"
 Bright = "\x1b[1m"
@@ -31,20 +27,6 @@ BgMagenta = "\x1b[45m"
 BgCyan = "\x1b[46m"
 BgWhite = "\x1b[47m"
 
-// create a function to write the different logs (default, error) in append mode in the log files
-const writeLog = (type, message, filePath) => {
-  const logPath = filePath || process.env.LOG_PATH || path.join(__dirname, '../..', 'logs');
-  const logFilePath = path.join(logPath, type);
-  const timestamp = new Date().toISOString().split('T')[0];
-
-  if (!fs.existsSync(logPath)) { fs.mkdirSync(logPath); }
-  if (!fs.existsSync(`${logPath}/${type}`)) { fs.mkdirSync(`${logPath}/${type}`); }
-
-  // write the log in the file
-  fs.appendFileSync(path.join(logFilePath, `${timestamp}.log`), `${message}\r`);
-};
-
-
 class serviceLogger {
   constructor(serviceName, loggerStorage) {
     this.serviceName = serviceName;
@@ -53,28 +35,19 @@ class serviceLogger {
   }
 
   log(message) {
-    const logString = `[${this.timestamp}] ${this.serviceName}: ${message}`;
-    console.log(logString);
-    writeLog('default', logString);
+    console.log(`[${this.timestamp}] ${this.serviceName}: ${message}`);
   }
 
   request(message) {
-    const logString = `[${this.timestamp}] ${this.serviceName}: ${message}`;
-    console.log(`${FgMagenta}${logString}${Reset}`);
-    writeLog('request', logString);
+    console.log(`${FgMagenta}[${this.timestamp}] ${this.serviceName}: ${message}${Reset}`);
   }
 
   success(message) {
-    const logString = `[${this.timestamp}] ${this.serviceName}: ${message}`;
-    console.log(`${FgGreen}${logString}${Reset}`);
-    writeLog('default', logString);
+    console.log(`${FgGreen}[${this.timestamp}] ${this.serviceName}: ${message}${Reset}`);
   }
 
   debug(message) {
-    if (!process.env.LOG_LEVEL === 'debug') { return; }
-    const logString = `[${this.timestamp}] ${this.serviceName}: ${message}`;
-    console.debug(`${FgCyan}${logString}${Reset}`);
-    writeLog('debug', logString);
+    console.debug(`${FgCyan}[${this.timestamp}] ${this.serviceName}: ${message}${Reset}`);
   }
 
   info(message) {
