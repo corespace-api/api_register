@@ -47,6 +47,9 @@ service.use(express.urlencoded({ extended: true }));
 
 // setting allowed headers
 service.use(cors(allowedHeader));
+
+// Supress the X-Powered-By header
+service.disable('x-powered-by');
 // -;-
 
 // #############################################################################
