@@ -7,6 +7,7 @@ const cors = require('cors');
 const getAllRoutes = require('./assets/utils/getAllRoutes');
 const Logger = require('./assets/utils/logger');
 const allowedHeader = require('./assets/networking/allowedHeader');
+const fingerprintMiddleware = require('./assets/middleware/mdFingerprint');
 
 // Create the logger
 const logger = new Logger("register");
@@ -47,6 +48,8 @@ service.use(express.urlencoded({ extended: true }));
 
 // setting allowed headers
 service.use(cors(allowedHeader));
+
+service.use(fingerprintMiddleware);
 
 // Supress the X-Powered-By header
 service.disable('x-powered-by');
