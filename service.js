@@ -1,162 +1,88 @@
-const express = require('express');
-const dotenv = require('dotenv');
-const path = require('path');
-const cors = require('cors');
-const crypto = require('crypto');
+const dotenv = require("dotenv");
+const crypto = require("crypto");
+const express = require("express");
+const path = require("path")
 
-// Loading custom modules
-const getAllRoutes = require('./assets/utils/getAllRoutes');
-const Logger = require('./assets/utils/logger');
-const allowedHeader = require('./assets/networking/allowedHeader');
-const fingerprintMiddleware = require('./assets/middleware/mdFingerprint');
-const ServiceManager = require('./assets/utils/serviceManager');
+const Logger = require("./assets/utils/logger");
+const { DBConnector } = require("./assets/database/DBManager");
+const ServiceManager = require("./assets/utils/serviceManager");
 
-const serviceInfo = {
+class Service {
+  constructor(service) {
+    this.router = express.Router();
+    this.logger = new Logger("Register/Service");
+    this.service = service;
+    this.dbc = new DBConnector();
+    this.timer = 10000;
+  }
+
+  loadConfig() {
+    dotenv.config();
+
+    // Load configuration
+    const PORT = process.env.PORT || 3000;
+    const ROUTES_PATH = path.join(__dirname, `routes`);
+    const allowDebug = process.env.ALLOW_DEBUG || false;
+  }
+
+  dbConnection() {
+    // Starting connection to the database
+    this.dbc.createAUrl();
+    this.logger.log(`Starting connection to the database...`);
+    this.logger.log(`Database URL: ${this.dbc.url}`);
+    this.dbc.attemptConnection()
+      .then(() => {
+        this.logger.success("Database connection succeeded");
+      })
+      .catch((error) => {
+        this.logger.log("Database connection failed");
+        this.logger.error(error);
+      });
+  }
+
+  manage() {
+    this.serviceManager = new ServiceManager(this.service, 10000, true);
+    this.serviceManager.registerService();
+    this.serviceManager.listenForKillSignal();
+    this.serviceManager.checkForServiceRemoval();
+  }
+
+  async refreshStatus() {
+    setInterval(() => {
+      this.serviceManager.setServiceStatus("active")
+      .catch((error) => {
+        this.logger.error(error);
+      });
+    }, this.timer);
+  }
+
+  async gracefulShutdown() {
+    this.logger.log("Gracefully shutting down the service...");
+    this.dbc.closeConnection();
+    this.serviceManager.unregisterService().then(() => {
+      this.logger.log("Service unregistered");
+      process.exit(0);
+    }).catch((error) => {
+      this.logger.error(error);
+      process.exit(1);
+    });
+  }
+}
+
+const service = new Service({
   type: "Register",
   name: "Register",
   uuid: crypto.randomBytes(16).toString("hex"),
   version: "1.0.0",
   description: "Register service for the microservice architecture",
-};
-
-// Create the logger
-const logger = new Logger(serviceInfo.type);
-
-logger.log("Booting up microservice...");
-
-// Load environment variables from .env file and creating the service
-const service = express();
-dotenv.config();
-
-// get run arguments
-const args = process.argv.slice(2);
-
-// Load configuration
-const PORT = process.env.PORT || 3000;
-const ROUTES_PATH = path.join(__dirname, `routes`);
-const allowDebug = process.env.ALLOW_DEBUG || false;
-
-logger.info(allowDebug)
-
-// #############################################################################
-// ##################          Service Registration ############################
-// #############################################################################
-
-// generate service uuid and register service
-const serviceManager = new ServiceManager(serviceInfo, 10000, true);
-serviceManager.registerService();
-serviceManager.listenForKillSignal();
-serviceManager.checkForServiceRemoval();
-// -;-
-
-// #############################################################################
-// ##################          Running Checks      #############################
-// #############################################################################
-if (allowDebug || allowDebug === true) { 
-  logger.info("Debug mode enabled, skipping forbidden source check"); 
-} else {
-  logger.info("Debug mode disabled, checking forbidden source");
-}
-// -;-
-
-// #############################################################################
-// ##################          Load all Middlewares ############################
-// #############################################################################
-logger.log("Loading middlewares...");
-// Add middleware to parse the body of the request
-service.use(express.json());
-service.use(express.urlencoded({ extended: true }));
-
-// setting allowed headers
-service.use(cors(allowedHeader));
-
-service.use(fingerprintMiddleware);
-
-// Supress the X-Powered-By header
-service.disable('x-powered-by');
-// -;-
-
-// #############################################################################
-// ##################       Service Request Log      ###########################
-// #############################################################################
-
-service.use((req, res, next) => {
-  headers = req.headers;
-  reqMessage = `Request: ${req.method} ${req.originalUrl} + ${JSON.stringify(headers)}`;
-  logger.request(reqMessage);
-  next();
 });
-// -;-
+service.loadConfig();
+service.dbConnection();
+service.manage();
+service.refreshStatus();
 
-// #############################################################################
-// ##################      Load all Routes     #################################
-// #############################################################################
-const apiRoutes = getAllRoutes(ROUTES_PATH);
-const apiRouteKeys = Object.keys(apiRoutes)
 
-logger.info(`Found ${apiRouteKeys.length} routes`);
-logger.log("Beginnig to load routes...");
-
-// check if the request originates from a forbidden source
-service.use((req, res, next) => {
-  const userAgent = req.headers['user-agent'];
-
-  if (allowDebug || allowDebug === true) { next(); return; }
-  if (userAgent.includes('curl') || userAgent.includes('PostmanRuntime') || userAgent.includes('insomnia')) {
-    logger.warn("Forbidden source detected, aborting request");
-    res.status(403).json({
-      error: "Forbidden",
-      message: "You are not allowed to access this resource",
-      status: 403
-    });
-    return;
-  } else {
-    next();
-  }
-});
-
-apiRoutes.forEach(route => {
-  logger.log(`Loading route: ${route}`);
-
-  const routePath = path.join(ROUTES_PATH, route);
-  const routeName = route.replace('.js', '');
-
-  // load route classes
-  const routeHandler = require(routePath);
-  const routeInstance = new routeHandler();
-
-  // load route methods
-  routeInstance.load();
-
-  // add route to service
-  service.use(`/${routeName}`, routeInstance.router);
-});
-
-logger.success("Routes loading complete!");
-// -;-
-
-service.use((error, req, res, next) => {
-  res.status(error.status || 500);
-  res.json({
-    error: {
-      message: error.message,
-      status: (error.status || 500)
-    }
-  });
-});
-
-service.listen(PORT || 3000, () => {
-  logger.log(`running on port ${PORT}`);
-});
-
-process.on('SIGINT', async function() {
-  console.log('Ctrl-C...');
-  
-  // wait for service to unregister
-  serviceManager.unregisterService()
-  .then(() => {
-    console.log("Service unregistered");
-    process.exit(2);
-  })
-  .catch(err => console.error("Service unregistration failed: ", err));
+// listen for process termination
+process.on("SIGINT", async () => {
+  service.gracefulShutdown();
 });
