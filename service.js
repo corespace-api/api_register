@@ -1,28 +1,34 @@
+const express = require("express");
 const dotenv = require("dotenv");
 const crypto = require("crypto");
-const express = require("express");
+const cors = require("cors");
 const path = require("path")
 
 const Logger = require("./assets/utils/logger");
-const { DBConnector } = require("./assets/database/DBManager");
 const ServiceManager = require("./assets/utils/serviceManager");
+const { DBConnector } = require("./assets/database/DBManager");
+const getAllRoutes = require('./assets/utils/getAllRoutes');
+const allowedHeader = require('./assets/networking/allowedHeader');
+const fingerprintMiddleware = require('./assets/middleware/mdFingerprint');
 
 class Service {
   constructor(service) {
+    this.server = express();
+    this.service = service;
     this.router = express.Router();
     this.logger = new Logger("Register/Service");
-    this.service = service;
     this.dbc = new DBConnector();
     this.timer = 10000;
+    this.config = {}
   }
 
   loadConfig() {
     dotenv.config();
 
     // Load configuration
-    const PORT = process.env.PORT || 3000;
-    const ROUTES_PATH = path.join(__dirname, `routes`);
-    const allowDebug = process.env.ALLOW_DEBUG || false;
+    this.config.PORT = process.env.PORT || 3000;
+    this.config.ROUTES_PATH = path.join(__dirname, `routes`);
+    this.config.allowDebug = process.env.ALLOW_DEBUG || false;
   }
 
   dbConnection() {
@@ -47,7 +53,7 @@ class Service {
     this.serviceManager.checkForServiceRemoval();
   }
 
-  async refreshStatus() {
+  refreshStatus() {
     setInterval(() => {
       this.serviceManager.setServiceStatus("active")
       .catch((error) => {
@@ -56,15 +62,65 @@ class Service {
     }, this.timer);
   }
 
-  async gracefulShutdown() {
+  gracefulShutdown() {
     this.logger.log("Gracefully shutting down the service...");
     this.dbc.closeConnection();
     this.serviceManager.unregisterService().then(() => {
-      this.logger.log("Service unregistered");
-      process.exit(0);
+      this.logger.success("Service shutdown complete");
+      process.exit(1);
     }).catch((error) => {
       this.logger.error(error);
       process.exit(1);
+    });
+  }
+
+  loadMiddleware() {
+    this.server.use(express.json());
+    this.server.use(express.urlencoded({ extended: true }));
+    // this.server.use(cors(allowedHeader));
+    // this.server.use(fingerprintMiddleware);
+    this.server.disable('x-powered-by');
+  }
+
+  logRequests() {
+    this.server.use((req, res, next) => {
+      const headers = req.headers;
+      const reqMessage = `Request: ${req.method} ${req.originalUrl} + ${JSON.stringify(headers)}`;
+      this.logger.request(reqMessage);
+      next();
+    });
+  }
+
+  loadRoutes() {
+    const apiRoutes = getAllRoutes(this.config.ROUTES_PATH);
+    const apiRouteKeys = Object.keys(apiRoutes)
+
+    this.logger.info(`Found ${apiRouteKeys.length} routes`);
+    this.logger.log("Beginnig to load routes...");
+
+    apiRoutes.forEach(route => {
+      this.logger.log(`Loading route: ${route}`);
+    
+      const routePath = path.join(this.config.ROUTES_PATH, route);
+      const routeName = route.replace('.js', '');
+    
+      // load route classes
+      const routeHandler = require(routePath);
+      const routeInstance = new routeHandler(this.dbc);
+    
+      // load route methods
+      routeInstance.load();
+    
+      // add route to service
+      this.server.use(`/${routeName}`, routeInstance.router);
+    });
+    
+    this.logger.success("Routes loading complete!");
+  }
+
+  listen() {
+    this.server.listen(this.config.PORT || 3000, () => {
+      this.logger.log(`Running on port ${this.config.PORT}`);
     });
   }
 }
@@ -78,11 +134,15 @@ const service = new Service({
 });
 service.loadConfig();
 service.dbConnection();
+service.loadMiddleware();
+service.logRequests();
+service.loadRoutes();
+service.listen();
+
 service.manage();
 service.refreshStatus();
 
-
 // listen for process termination
-process.on("SIGINT", async () => {
+process.on("SIGINT", () => {
   service.gracefulShutdown();
 });
