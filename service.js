@@ -2,15 +2,25 @@ const express = require('express');
 const dotenv = require('dotenv');
 const path = require('path');
 const cors = require('cors');
+const crypto = require('crypto');
 
 // Loading custom modules
 const getAllRoutes = require('./assets/utils/getAllRoutes');
 const Logger = require('./assets/utils/logger');
 const allowedHeader = require('./assets/networking/allowedHeader');
 const fingerprintMiddleware = require('./assets/middleware/mdFingerprint');
+const ServiceManager = require('./assets/utils/serviceManager');
+
+const serviceInfo = {
+  type: "Register",
+  name: "Register",
+  uuid: crypto.randomBytes(16).toString("hex"),
+  version: "1.0.0",
+  description: "Register service for the microservice architecture",
+};
 
 // Create the logger
-const logger = new Logger("register");
+const logger = new Logger(serviceInfo.type);
 
 logger.log("Booting up microservice...");
 
@@ -29,7 +39,18 @@ const allowDebug = process.env.ALLOW_DEBUG || false;
 logger.info(allowDebug)
 
 // #############################################################################
-// ##################          Running Checks ############################
+// ##################          Service Registration ############################
+// #############################################################################
+
+// generate service uuid and register service
+const serviceManager = new ServiceManager(serviceInfo, 10000, true);
+serviceManager.registerService();
+serviceManager.listenForKillSignal();
+serviceManager.checkForServiceRemoval();
+// -;-
+
+// #############################################################################
+// ##################          Running Checks      #############################
 // #############################################################################
 if (allowDebug || allowDebug === true) { 
   logger.info("Debug mode enabled, skipping forbidden source check"); 
@@ -126,4 +147,16 @@ service.use((error, req, res, next) => {
 
 service.listen(PORT || 3000, () => {
   logger.log(`running on port ${PORT}`);
+});
+
+process.on('SIGINT', async function() {
+  console.log('Ctrl-C...');
+  
+  // wait for service to unregister
+  serviceManager.unregisterService()
+  .then(() => {
+    console.log("Service unregistered");
+    process.exit(2);
+  })
+  .catch(err => console.error("Service unregistration failed: ", err));
 });
