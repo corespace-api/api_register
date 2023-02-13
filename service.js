@@ -78,7 +78,7 @@ class Service {
     this.server.use(express.json());
     this.server.use(express.urlencoded({ extended: true }));
     // this.server.use(cors(allowedHeader));
-    // this.server.use(fingerprintMiddleware);
+    this.server.use(fingerprintMiddleware);
     this.server.disable('x-powered-by');
   }
 
@@ -132,6 +132,7 @@ const service = new Service({
   version: "1.0.0",
   description: "Register service for the microservice architecture",
 });
+
 service.loadConfig();
 service.dbConnection();
 service.loadMiddleware();
