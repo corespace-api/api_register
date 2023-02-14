@@ -58,27 +58,6 @@ class Service {
     this.serviceManager.listenForKillSignal();
   }
 
-  checkOrigin() {
-    this.logger.info(`The current debug mode is: ${this.config.allowDebug}`)
-
-    this.server.use((req, res, next) => {
-      const userAgent = req.headers["user-agent"];
-      if (this.config.allowDebug) { next(); return; }
-      const userAgentFirstPart = userAgent.split("/")[0];
-
-      if (this.config.ALLOWED_AGENDS.includes(userAgentFirstPart)) {
-        next();
-      } else {
-        this.logger.warn(`User-Agent not allowed: ${userAgent}`);
-        res.status(403).json({
-          status: "error",
-          code: 403,
-          message: "Access denied",
-        });
-      }
-    });
-  }
-
   refreshStatus() {
     setInterval(() => {
       this.serviceManager.setServiceStatus("active")
@@ -106,6 +85,27 @@ class Service {
     // this.server.use(cors(allowedHeader));
     this.server.use(fingerprintMiddleware);
     this.server.disable('x-powered-by');
+  }
+
+  checkOrigin() {
+    this.logger.info(`The current debug mode is: ${this.config.allowDebug}`)
+
+    this.server.use((req, res, next) => {
+      const userAgent = req.headers["user-agent"];
+      if (this.config.allowDebug) { next(); return; }
+      const userAgentFirstPart = userAgent.split("/")[0];
+
+      if (this.config.ALLOWED_AGENDS.includes(userAgentFirstPart)) {
+        next();
+      } else {
+        this.logger.warn(`User-Agent not allowed: ${userAgent}`);
+        res.status(403).json({
+          status: "error",
+          code: 403,
+          message: "Access denied",
+        });
+      }
+    });
   }
 
   logRequests() {
