@@ -56,6 +56,25 @@ class Service {
     this.serviceManager.listenForKillSignal();
   }
 
+  checkOrigin() {
+    this.server.use((req, res, next) => {
+      const userAgent = req.headers["user-agent"];
+
+      if (this.config.allowDebug || this.config.allowDebug === true) { next(); return; }
+      console.log(userAgent);
+      if (!this.config.ALLOWED_AGENDS.includes(userAgent)) {
+        this.logger.warn("Forbidden source detected, aborting request");
+        res.status(403).json({
+          error: "Forbidden",
+          message: "You are not allowed to access this resource"
+        });
+        return;
+      } else {
+        next();
+      }
+    });
+  }
+
   refreshStatus() {
     setInterval(() => {
       this.serviceManager.setServiceStatus("active")
@@ -139,6 +158,7 @@ const service = new Service({
 service.loadConfig();
 service.dbConnection();
 service.loadMiddleware();
+service.checkOrigin();
 service.logRequests();
 service.loadRoutes();
 service.listen();
