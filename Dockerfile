@@ -1,6 +1,6 @@
 FROM zombymediaic/nodejs:v19.5.0-alpine
 LABEL org.opencontainers.image.maintainer="AsP3X"
-LABEL org.opencontainers.image.name="login"
+LABEL org.opencontainers.image.name="REGISTER"
 
 # # -- Installing basic dependencies
 # RUN apk update && apk upgrade
@@ -37,7 +37,7 @@ RUN yarn install
 COPY service.js /service/service.js
 COPY assets/ /service/assets/
 COPY routes /service/routes/
-COPY service-config.json /service/service-config.json
+COPY config.json /service/config.json
 
 EXPOSE 3000
 
