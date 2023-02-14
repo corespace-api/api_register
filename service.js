@@ -41,8 +41,12 @@ class Service {
         this.logger.success("Database connection succeeded");
       })
       .catch((error) => {
-        this.logger.log("Database connection failed");
+        this.logger.warn("Database connection failed, retrying in 5 seconds...");
         this.logger.error(error);
+        setTimeout(() => {
+          this.logger.log("Retrying database connection...");
+          this.dbConnection();
+        }, 5000);
       });
   }
 
@@ -145,5 +149,9 @@ service.refreshStatus();
 
 // listen for process termination
 process.on("SIGINT", () => {
+  service.gracefulShutdown();
+});
+
+process.on("SIGTERM", () => {
   service.gracefulShutdown();
 });
