@@ -70,8 +70,8 @@ class Service {
 
   gracefulShutdown() {
     this.logger.log("Gracefully shutting down the service...");
-    this.dbc.closeConnection();
     this.serviceManager.unregisterService().then(() => {
+      this.dbc.closeConnection();
       this.logger.success("Service shutdown complete");
       process.exit(1);
     }).catch((error) => {
