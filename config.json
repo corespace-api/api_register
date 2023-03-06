@@ -4,5 +4,5 @@
         "AppleWebKit",
         "Chrome"
     ],
-    "DEBUG": false
+    "DEBUG": true
 }

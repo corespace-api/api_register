@@ -3,6 +3,7 @@ const dotenv = require("dotenv");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path")
+const cors = require("cors")
 
 const Logger = require("./assets/utils/logger");
 const ServiceManager = require("./assets/utils/serviceManager");
@@ -82,7 +83,7 @@ class Service {
   loadMiddleware() {
     this.server.use(express.json());
     this.server.use(express.urlencoded({ extended: true }));
-    // this.server.use(cors(allowedHeader));
+    this.server.use(cors());
     this.server.use(fingerprintMiddleware);
     this.server.disable('x-powered-by');
   }
