@@ -1,8 +1,4 @@
-const express = require('express');
 const mongoose = require('mongoose');
-
-// Loading custom modules
-const Logger = require('../assets/utils/logger');
 
 // Loading models
 const userSchema = require('../assets/models/user');
@@ -20,9 +16,11 @@ async function checkEmail(email) {
 }
 
 class Health {
-  constructor(dbc) {
-    this.logger = new Logger("register/register");
-    this.router = express.Router();
+  constructor(config, logger, express, dbc) {
+    this.config = config;
+    this.logger = logger;
+    this.express = express;
+    this.router = this.express.Router();
     this.dbc = dbc;
   }
 

@@ -1,14 +1,9 @@
-const express = require('express');
-const path = require('path');
-const fs = require('fs');
-
-// Loading custom modules
-const Logger = require('../assets/utils/logger');
-
 class Health {
-  constructor() {
-    this.logger = new Logger("register/health");
-    this.router = express.Router();
+  constructor(config, logger, express) {
+    this.config = config;
+    this.logger = logger
+    this.express = express;
+    this.router = this.express.Router();
   }
 
   rootRoute() {
