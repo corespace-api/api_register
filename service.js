@@ -125,6 +125,7 @@ class Register extends ServiceManager {
     setTimeout(() => {
       this.server.listen(this.config.getConfig("port"), () => {
         this.logger.success(`Server started on port ${this.config.getConfig("port")}`);
+        this.setStatus("online");
       });
     }, 10000);
   }

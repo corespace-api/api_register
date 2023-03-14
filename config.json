@@ -6,11 +6,11 @@
   "license": "MIT",
   "port": 3000,
   "mongodb": {
-    "MONGO_URL": "corespace.de",
-    "MONGO_PORT": "27018",
+    "MONGO_URL": "localhost",
+    "MONGO_PORT": "27017",
     "MONGO_USER": "corespace",
-    "MONGO_PASSWORD": "bekfLYtQfa2H9SfzndNFafBVei8AZ5SFKLWMuRkx",
+    "MONGO_PASSWORD": "masterpassword",
     "MONGO_DB": "corespace"
   },
-  "route_path": "C:\\Users\\servi\\Desktop\\Development\\corespace_api_refactor\\api_register\\routes\\"
+  "route_path": "D:\\05_Development\\corespace_api\\api_register\\routes\\"
 }
